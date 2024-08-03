@@ -3,7 +3,7 @@
 module DBLoader
   def load_items(conn:)
     items = []
-    result = conn.exec("SELECT * FROM items")
+    result = conn.exec('SELECT * FROM items')
     result.each do |row|
       items << case row['type']
                when 'Book'
@@ -21,7 +21,7 @@ module DBLoader
 
   def load_customers(conn:)
     customers = []
-    result = conn.exec("SELECT * FROM customers")
+    result = conn.exec('SELECT * FROM customers')
     result.each do |row|
       customers << Customer.new(
         id: row['id'].to_i,

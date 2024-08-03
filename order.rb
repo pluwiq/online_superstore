@@ -35,8 +35,8 @@ class Order
   end
 
   def export_order(file_path:)
-    CSV.open(file_path, "wb") do |csv|
-      csv << ["Item ID", "Item Name", "Quantity", "Price"]
+    CSV.open(file_path, 'wb') do |csv|
+      csv << ['Item ID', 'Item Name', 'Quantity', 'Price']
       @items.each do |i|
         csv << [i[:item].id, i[:item].name, i[:quantity], i[:item].price]
       end
@@ -44,12 +44,10 @@ class Order
   end
 
   def show_order
-    if @items.empty?
-      puts "No items in this order."
-    else
-      @items.each do |i|
-        puts "Item: #{i[:item].name}, Quantity: #{i[:quantity]}, Price: #{i[:item].price}"
-      end
+    return puts 'No items in this order.' if @items.empty?
+
+    @items.each do |i|
+      puts "Item: #{i[:item].name}, Quantity: #{i[:quantity]}, Price: #{i[:item].price}"
     end
   end
 end

@@ -18,10 +18,6 @@ class Customer
 
   def pay_order(order_id:)
     order = @orders.find { |o| o.id == order_id }
-    if order
-      puts "Order ##{order_id} paid. Total sum: #{order.total_sum}"
-    else
-      puts 'Order not found for this customer.'
-    end
+    order ? (puts "Order ##{order_id} paid. Total sum: #{order.total_sum}") : (puts 'Order not found for this customer.')
   end
 end

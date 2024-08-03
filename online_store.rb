@@ -18,8 +18,6 @@ class OnlineStore
   include CustomerInput
   include DBLoader
 
-  attr_reader :customers, :orders, :order_source, :items
-
   FILE_NAME = 'orders.csv'.freeze
 
   def initialize
@@ -37,25 +35,23 @@ class OnlineStore
 
   def list_items
     puts "Available Items:"
-    @items.each_with_index do |item, index|
-      puts "#{index + 1}. #{item.name} - #{item.price} (#{item.class.name})"
+    @items.each do |item|
+      puts "ID: #{item.id}, Name: #{item.name}, Price: #{item.price}, Type: #{item.class.name}"
     end
   end
 
-  def find_item_by_index(index:)
-    result = @db_conn.conn.exec_params("SELECT * FROM items WHERE id = $1 LIMIT 1", [index])
-    row = result.first
-    return unless row
+  def find_item_by_id(id:)
+    row = @db_conn.conn.exec_params('SELECT * FROM items WHERE id = $1 LIMIT 1', [id]).first or return
 
     case row['type']
     when 'Book'
-      Book.from_db(row:)
+      Book.from_db(row: row)
     when 'Game'
-      Game.from_db(row:)
+      Game.from_db(row: row)
     when 'BoardGame'
-      BoardGame.from_db(row:)
+      BoardGame.from_db(row: row)
     when 'ComputerGame'
-      ComputerGame.from_db(row:)
+      ComputerGame.from_db(row: row)
     else
       nil
     end
@@ -64,10 +60,10 @@ class OnlineStore
   def create_customer
     customer = Customer.new(
       id: @customers.size + 1,
-      name: prompt_for_name,
-      email: prompt_for_email,
-      phone: prompt_for_phone,
-      address: prompt_for_address
+      name: prompt_for(field: :name),
+      email: prompt_for(field: :email),
+      phone: prompt_for(field: :phone),
+      address: prompt_for(field: :address)
     )
     @customers << customer
     save_customer_to_db(customer:)
@@ -75,7 +71,7 @@ class OnlineStore
   end
 
   def save_customer_to_db(customer:)
-    query = "INSERT INTO customers (name, email, phone, address) VALUES ($1, $2, $3, $4)"
+    query = 'INSERT INTO customers (name, email, phone, address) VALUES ($1, $2, $3, $4)'
     params = [customer.name, customer.email, customer.phone, customer.address]
     @db_conn.conn.exec_params(query, params)
   end
@@ -92,14 +88,14 @@ class OnlineStore
   def add_items_to_order(order:)
     loop do
       list_items
-      puts "Select an item number to add to your order, or type 'done' to finish:"
+      puts "Select an item ID to add to your order, or type 'done' to finish:"
       input = gets.chomp
       break if input.downcase == 'done'
 
-      item_index = input.to_i
-      item = find_item_by_index(index: item_index)
+      item_id = input.to_i
+      item = find_item_by_id(id: item_id)
 
-      item or (puts 'Invalid item number.'; next)
+      item or (puts 'Invalid item ID.'; next)
 
       puts 'Enter quantity:'
       quantity = gets.chomp.to_i
@@ -130,4 +126,8 @@ class OnlineStore
       order.show_order
     end
   end
+
+  private
+
+  attr_reader :customers, :orders, :order_source, :items
 end

@@ -10,8 +10,7 @@ module OrderHelpers
   end
 
   def handle_create_order(store:)
-    customer = find_customer(store:)
-    return unless customer
+    customer = find_customer(store:) ? customer : (return)
 
     order = store.create_order(customer:)
     puts "Order created with total sum: #{order.total_sum}"

@@ -1,33 +1,31 @@
 # frozen_string_literal: true
 
 module CustomerInput
-  def prompt_for_name
-    loop do
-      puts "Enter your name (only letters):"
-      name = gets.chomp
-      return name if validate_input { Validation.validate_name(name) }
-    end
-  end
+  INPUT_PROMPTS = {
+    name: {
+      message: 'Enter your name (only letters):',
+      validation: ->(input:) { Validation.validate_name(input:) }
+    },
+    email: {
+      message: 'Enter your email (at least 9 characters, format @.com):',
+      validation: ->(input:) { Validation.validate_email(input:) }
+    },
+    phone: {
+      message: 'Enter your phone number (only digits, at least 6 digits):',
+      validation: ->(input:) { Validation.validate_phone(input:) }
+    },
+    address: {
+      message: 'Enter your address:',
+      validation: ->(input:) { true }
+    }
+  }.freeze
 
-  def prompt_for_email
+  def prompt_for(field:)
     loop do
-      puts "Enter your email (at least 9 characters, format @.com):"
-      email = gets.chomp
-      return email if validate_input { Validation.validate_email(email) }
+      puts INPUT_PROMPTS[field][:message]
+      input = gets.chomp
+      return input if validate_input { INPUT_PROMPTS[field][:validation].call(input:) }
     end
-  end
-
-  def prompt_for_phone
-    loop do
-      puts "Enter your phone number (only digits, at least 6 digits):"
-      phone = gets.chomp
-      return phone if validate_input { Validation.validate_phone(phone) }
-    end
-  end
-
-  def prompt_for_address
-    puts 'Enter your address:'
-    gets.chomp
   end
 
   private
