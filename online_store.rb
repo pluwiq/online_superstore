@@ -10,50 +10,25 @@ require_relative 'customer'
 require_relative 'order_source'
 require_relative 'csv_order_source'
 require_relative 'validation'
-require 'pg'
+require_relative 'customer_input'
+require_relative 'db_loader'
+require_relative 'db_connection'
 
 class OnlineStore
-  attr_reader :customers, :orders, :order_source
+  include CustomerInput
+  include DBLoader
+
+  attr_reader :customers, :orders, :order_source, :items
+
+  FILE_NAME = 'orders.csv'.freeze
 
   def initialize
-    user = ENV['DB_USER']
-    pass = ENV['DB_PASSWORD']
-    @conn = PG.connect(dbname: 'online_store', user:, password: pass)
-    @customers = []
+    @db_conn = DBConnection.new
+    @customers = load_customers(conn: @db_conn.conn)
     @orders = []
-    @order_source = CsvOrderSource.new(file_path: 'orders.csv')
-    load_items
-    load_customers
+    @items = load_items(conn: @db_conn.conn)
+    @order_source = CsvOrderSource.new(file_path: FILE_NAME)
     load_orders
-  end
-
-  def load_items
-    @items = []
-    result = @conn.exec("SELECT * FROM items")
-    result.each do |row|
-      case row['type']
-      when 'Book'
-        @items << Book.from_db(row:)
-      when 'Game'
-        @items << Game.from_db(row:)
-      when 'BoardGame'
-        @items << BoardGame.from_db(row:)
-      when 'ComputerGame'
-        @items << ComputerGame.from_db(row:)
-      end
-    end
-  end
-
-  def load_customers
-    result = @conn.exec("SELECT * FROM customers")
-    result.each do |row|
-      customer = Customer.new(id: row['id'].to_i,
-                              name: row['name'],
-                              email: row['email'],
-                              phone: row['phone'],
-                              address: row['address'])
-      @customers << customer
-    end
   end
 
   def load_orders
@@ -68,103 +43,77 @@ class OnlineStore
   end
 
   def find_item_by_index(index:)
-    @items[index - 1] if index.between?(1, @items.length)
+    result = @db_conn.conn.exec_params("SELECT * FROM items WHERE id = $1 LIMIT 1", [index])
+    row = result.first
+    return unless row
+
+    case row['type']
+    when 'Book'
+      Book.from_db(row:)
+    when 'Game'
+      Game.from_db(row:)
+    when 'BoardGame'
+      BoardGame.from_db(row:)
+    when 'ComputerGame'
+      ComputerGame.from_db(row:)
+    else
+      nil
+    end
   end
 
   def create_customer
-    name = prompt_for_name
-    email = prompt_for_email
-    phone = prompt_for_phone
-    puts 'Enter your address:'
-    address = gets.chomp
     customer = Customer.new(
       id: @customers.size + 1,
-      name: name,
-      email: email,
-      phone: phone,
-      address: address
+      name: prompt_for_name,
+      email: prompt_for_email,
+      phone: prompt_for_phone,
+      address: prompt_for_address
     )
     @customers << customer
-    save_customer_to_db(customer: customer)
+    save_customer_to_db(customer:)
     customer
   end
 
-  def prompt_for_name
-    loop do
-      puts "Enter your name (only letters):"
-      name = gets.chomp
-      begin
-        Validation.validate_name(name)
-        return name
-      rescue ArgumentError => e
-        puts e.message
-      end
-    end
-  end
-
-  def prompt_for_email
-    loop do
-      puts "Enter your email (at least 9 characters, format @.com):"
-      email = gets.chomp
-      begin
-        Validation.validate_email(email)
-        return email
-      rescue ArgumentError => e
-        puts e.message
-      end
-    end
-  end
-
-  def prompt_for_phone
-    loop do
-      puts "Enter your phone number (only digits, at least 6 digits):"
-      phone = gets.chomp
-      begin
-        Validation.validate_phone(phone)
-        return phone
-      rescue ArgumentError => e
-        puts e.message
-      end
-    end
-  end
-
   def save_customer_to_db(customer:)
-    @conn.exec("INSERT INTO customers (name, email, phone, address) VALUES ($1, $2, $3, $4)",
-               [customer.name, customer.email, customer.phone, customer.address])
+    query = "INSERT INTO customers (name, email, phone, address) VALUES ($1, $2, $3, $4)"
+    params = [customer.name, customer.email, customer.phone, customer.address]
+    @db_conn.conn.exec_params(query, params)
   end
 
   def create_order(customer:)
     order = Order.new(id: @orders.size + 1, customer_id: customer.id)
-    loop do
-      list_items
-      puts "Select an item number to add to your order, or type 'done' to finish:"
-      input = gets.chomp
-      break if input.downcase == 'done'
-      item_index = input.to_i
-      item = find_item_by_index(index: item_index)
-      if item
-        puts 'Enter quantity:'
-        quantity = gets.chomp.to_i
-        order.add_item(item:, quantity:)
-      else
-        puts 'Invalid item number.'
-      end
-    end
+    add_items_to_order(order:)
     @orders << order
     customer.create_order(order:)
     @order_source.save_order(order:)
     order
   end
 
+  def add_items_to_order(order:)
+    loop do
+      list_items
+      puts "Select an item number to add to your order, or type 'done' to finish:"
+      input = gets.chomp
+      break if input.downcase == 'done'
+
+      item_index = input.to_i
+      item = find_item_by_index(index: item_index)
+
+      item or (puts 'Invalid item number.'; next)
+
+      puts 'Enter quantity:'
+      quantity = gets.chomp.to_i
+      order.add_item(item:, quantity:)
+    end
+  end
+
   def delete_order(order_id:)
     order = @orders.find { |o| o.id == order_id }
-    if order
-      @orders.delete(order)
-      @order_source.delete_order(order_id: order_id)
-      puts "Order ##{order_id} has been deleted."
-    else
-      puts 'Order not found.'
-    end
+    order or (puts 'Order not found.'; return)
+
+    @orders.delete(order)
+    @order_source.delete_order(order_id:)
+    puts "Order ##{order_id} has been deleted."
   end
 
   def list_customers

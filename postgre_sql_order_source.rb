@@ -18,7 +18,7 @@ class PostgreSQLOrderSource < OrderSource
       order_items.each do |item_row|
         item_data = @conn.exec("SELECT * FROM items WHERE id = $1", [item_row['item_id'].to_i]).first
         item = Item.from_db(row: item_data)
-        order.add_item(item: item, quantity: item_row['quantity'].to_i)
+        order.add_item(item:, quantity: item_row['quantity'].to_i)
       end
       orders << order
     end

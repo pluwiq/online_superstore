@@ -1,8 +1,10 @@
 # frozen_string_literal: true
 
 require_relative 'online_store'
+require_relative 'order_helpers'
 
 store = OnlineStore.new
+include OrderHelpers
 
 puts 'Welcome to the Online Store!'
 loop do
@@ -21,33 +23,11 @@ loop do
   when 2
     store.list_customers
   when 3
-    puts 'Enter customer ID:'
-    customer_id = gets.chomp.to_i
-    customer = store.customers.find { |c| c.id == customer_id }
-    if customer
-      order = store.create_order(customer:)
-      puts "Order created with total sum: #{order.total_sum}"
-    else
-      puts 'Customer not found.'
-    end
+    handle_create_order(store:)
   when 4
     store.list_orders
   when 5
-    puts 'Enter customer ID:'
-    customer_id = gets.chomp.to_i
-    customer = store.customers.find { |c| c.id == customer_id }
-    if customer
-      puts 'Enter order ID to pay:'
-      order_id = gets.chomp.to_i
-      if customer.orders.any? { |o| o.id == order_id }
-        customer.pay_order(order_id:)
-        store.order_source.update_order(order: customer.orders.find { |o| o.id == order_id })
-      else
-        puts 'Order ID not found for this customer.'
-      end
-    else
-      puts 'Customer not found.'
-    end
+    handle_pay_order(store:)
   when 6
     puts 'Enter order ID to delete:'
     order_id = gets.chomp.to_i
