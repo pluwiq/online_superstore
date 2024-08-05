@@ -10,22 +10,23 @@ module OrderHelpers
   end
 
   def handle_create_order(store:)
-    customer = find_customer(store:) ? customer : (return)
+    return unless (customer = find_customer(store:))
 
     order = store.create_order(customer:)
     puts "Order created with total sum: #{order.total_sum}"
   end
 
   def handle_pay_order(store:)
-    return unless (customer = find_customer(store:))
+    customer = find_customer(store:) or return
 
     puts 'Enter order ID to pay:'
     order_id = gets.chomp.to_i
-    order = customer.orders.find { |o| o.id == order_id }
+    order = customer.orders.find { |o| o.id == order_id } or return puts('Order ID not found for this customer.')
 
-    puts('Order ID not found for this customer.') && return unless order
+    customer.pay_order(order_id: order_id)
+    store.order_source.update_order(order: order)
 
-    customer.pay_order(order_id:)
-    store.order_source.update_order(order:)
+    store.orders.delete(order)
+    puts "Order ##{order_id} paid and removed. Total sum: #{order.total_sum}"
   end
 end

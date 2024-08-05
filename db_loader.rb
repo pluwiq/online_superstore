@@ -3,8 +3,8 @@
 module DBLoader
   def load_items(conn:)
     items = []
-    result = conn.exec('SELECT * FROM items')
-    result.each do |row|
+    items_from_db = conn.exec('SELECT * FROM items')
+    items_from_db.each do |row|
       items << case row['type']
                when 'Book'
                  Book.from_db(row:)
@@ -14,15 +14,17 @@ module DBLoader
                  BoardGame.from_db(row:)
                when 'ComputerGame'
                  ComputerGame.from_db(row:)
+               else
+                 nil
                end
     end
-    items
+    items.compact
   end
 
   def load_customers(conn:)
     customers = []
-    result = conn.exec('SELECT * FROM customers')
-    result.each do |row|
+    customers_from_db = conn.exec('SELECT * FROM customers')
+    customers_from_db.each do |row|
       customers << Customer.new(
         id: row['id'].to_i,
         name: row['name'],

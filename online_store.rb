@@ -18,7 +18,7 @@ class OnlineStore
   include CustomerInput
   include DBLoader
 
-  FILE_NAME = 'orders.csv'.freeze
+  attr_reader :customers, :orders, :order_source, :items
 
   def initialize
     @db_conn = DBConnection.new
@@ -41,17 +41,18 @@ class OnlineStore
   end
 
   def find_item_by_id(id:)
-    row = @db_conn.conn.exec_params('SELECT * FROM items WHERE id = $1 LIMIT 1', [id]).first or return
+    row = @db_conn.conn.exec_params('SELECT * FROM items WHERE id = $1 LIMIT 1', [id]).first
+    return nil unless row
 
     case row['type']
     when 'Book'
-      Book.from_db(row: row)
+      Book.from_db(row:)
     when 'Game'
-      Game.from_db(row: row)
+      Game.from_db(row:)
     when 'BoardGame'
-      BoardGame.from_db(row: row)
+      BoardGame.from_db(row:)
     when 'ComputerGame'
-      ComputerGame.from_db(row: row)
+      ComputerGame.from_db(row:)
     else
       nil
     end
@@ -88,24 +89,21 @@ class OnlineStore
   def add_items_to_order(order:)
     loop do
       list_items
-      puts "Select an item ID to add to your order, or type 'done' to finish:"
-      input = gets.chomp
-      break if input.downcase == 'done'
+      print 'Select an item ID to add to your order, or type "done" to finish: '
+      input = gets.chomp.downcase
+      break if input == 'done'
 
-      item_id = input.to_i
-      item = find_item_by_id(id: item_id)
+      item = find_item_by_id(id: input.to_i)
+      next (puts 'Invalid item ID.') unless item
 
-      item or (puts 'Invalid item ID.'; next)
-
-      puts 'Enter quantity:'
-      quantity = gets.chomp.to_i
-      order.add_item(item:, quantity:)
+      print 'Enter quantity: '
+      order.add_item(item:, quantity: gets.chomp.to_i)
     end
   end
 
   def delete_order(order_id:)
     order = @orders.find { |o| o.id == order_id }
-    order or (puts 'Order not found.'; return)
+    return puts 'Order not found.' unless order
 
     @orders.delete(order)
     @order_source.delete_order(order_id:)
@@ -114,9 +112,7 @@ class OnlineStore
 
   def list_customers
     puts 'Customers:'
-    @customers.each do |customer|
-      puts "ID: #{customer.id}, Name: #{customer.name}, Email: #{customer.email}"
-    end
+    @customers.each { |customer| puts "ID: #{customer.id}, Name: #{customer.name}, Email: #{customer.email}" }
   end
 
   def list_orders
@@ -129,5 +125,5 @@ class OnlineStore
 
   private
 
-  attr_reader :customers, :orders, :order_source, :items
+  FILE_NAME = 'orders.csv'.freeze
 end

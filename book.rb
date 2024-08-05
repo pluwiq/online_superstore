@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require_relative 'db_connection'
 require_relative 'item'
 
 class Book < Item
@@ -7,10 +8,9 @@ class Book < Item
 
   def initialize(id:, name:, description:, price:, author: nil, publisher: nil, isbn: nil)
     super(id:, name:, description:, price:)
-    @author = author
+    @isbn = validate_isbn_uniqueness(isbn:)
     @publisher = publisher
-    @isbn = isbn
-    validate_isbn_uniqueness
+    @author = author
   end
 
   def self.from_db(row:)
@@ -27,19 +27,19 @@ class Book < Item
 
   private
 
-  def validate_isbn_uniqueness
+  def validate_isbn_uniqueness(isbn:)
     existing_book = self.class.find_by_isbn(isbn:)
     raise 'ISBN must be unique' if existing_book && existing_book.id != @id
+
+    isbn
   end
 
   def self.find_by_isbn(isbn:)
-    conn = PG.connect(dbname: ENV.fetch('DB_NAME'), user: ENV.fetch('DB_USER'), password: ENV.fetch('DB_PASSWORD'))
-    result = conn.exec_params('SELECT * FROM items WHERE isbn = $1 LIMIT 1', [isbn])
-    return nil unless result.any?
+    DBConnection.with_connection do |conn|
+      result = conn.exec_params('SELECT * FROM items WHERE isbn = $1 LIMIT 1', [isbn])
+      return nil unless result.any?
 
-    row = result.first
-    from_db(row:)
-  ensure
-    conn.close if conn
+      from_db(row: result.first)
+    end
   end
 end

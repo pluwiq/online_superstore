@@ -3,6 +3,7 @@
 require 'csv'
 require_relative 'order'
 require_relative 'item'
+require_relative 'db_connection'
 
 class CsvOrderSource < OrderSource
   def initialize(file_path:)
@@ -31,15 +32,36 @@ class CsvOrderSource < OrderSource
   end
 
   def save_order(order:)
-    CSV.open(@file_path, 'a+') do |csv|
-      order.items.each do |order_item|
-        csv << [order.id,
-                order.customer_id,
-                order_item[:item].id,
-                order_item[:item].name,
-                order_item[:item].description,
-                order_item[:item].price,
-                order_item[:quantity]]
+    DBConnection.with_connection do |conn|
+      query = %(
+        SELECT
+          oi.order_id,
+          o.customer_id,
+          i.id AS item_id,
+          i.name,
+          i.description,
+          i.price,
+          oi.quantity
+        FROM order_items oi
+        JOIN items i ON oi.item_id = i.id
+        JOIN orders o ON oi.order_id = o.id
+        WHERE oi.order_id = $1
+      )
+
+      result = conn.exec_params(query, [order.id])
+
+      CSV.open(@file_path, 'a+') do |csv|
+        result.each do |row|
+          csv << [
+            row['order_id'],
+            row['customer_id'],
+            row['item_id'],
+            row['name'],
+            row['description'],
+            row['price'],
+            row['quantity']
+          ]
+        end
       end
     end
   end
@@ -62,17 +84,39 @@ class CsvOrderSource < OrderSource
   private
 
   def write_orders_to_csv(orders:)
-    CSV.open(@file_path, 'wb') do |csv|
-      csv << %w[order_id customer_id item_id name description price quantity]
-      orders.each do |o|
-        o.items.each do |order_item|
-          csv << [o.id,
-                  o.customer_id,
-                  order_item[:item].id,
-                  order_item[:item].name,
-                  order_item[:item].description,
-                  order_item[:item].price,
-                  order_item[:quantity]]
+    return if orders.empty?
+
+    DBConnection.with_connection do |conn|
+      order_ids = orders.map(&:id).join(',')
+      query = %(
+        SELECT
+          oi.order_id,
+          o.customer_id,
+          i.id AS item_id,
+          i.name,
+          i.description,
+          i.price,
+          oi.quantity
+        FROM orders o
+        JOIN order_items oi ON o.id = oi.order_id
+        JOIN items i ON oi.item_id = i.id
+        WHERE o.id IN (#{order_ids})
+      )
+
+      result = conn.exec(query)
+
+      CSV.open(@file_path, 'wb') do |csv|
+        csv << %w[order_id customer_id item_id name description price quantity]
+        result.each do |row|
+          csv << [
+            row['order_id'],
+            row['customer_id'],
+            row['item_id'],
+            row['name'],
+            row['description'],
+            row['price'],
+            row['quantity']
+          ]
         end
       end
     end

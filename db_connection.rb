@@ -6,7 +6,7 @@ class DBConnection
   attr_reader :conn
 
   def initialize
-    @conn = PG.connect(dbname: ENV['DB_NAME'], user: ENV['DB_USER'], password: ENV['DB_PASSWORD'])
+    @conn = PG.connect(dbname: ENV.fetch('DB_NAME'), user: ENV.fetch('DB_USER'), password: ENV.fetch('DB_PASSWORD'))
   end
 
   def exec_params(query:, params: [])
@@ -15,5 +15,12 @@ class DBConnection
 
   def exec(query:)
     @conn.exec(query)
+  end
+
+  def self.with_connection
+    db = new
+    yield db.conn
+  ensure
+    db.conn.close if db.conn
   end
 end
