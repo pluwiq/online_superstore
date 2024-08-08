@@ -1,11 +1,10 @@
-# frozen_string_literal: true
-
 module DBLoader
   def load_items(conn:)
     items = []
     items_from_db = conn.exec('SELECT * FROM items')
     items_from_db.each do |row|
-      items << case row['type']
+      begin
+        item = case row['type']
                when 'Book'
                  Book.from_db(row:)
                when 'Game'
@@ -17,6 +16,10 @@ module DBLoader
                else
                  nil
                end
+        items << item if item
+      rescue => e
+        puts "Error loading item with id=#{row['id']}: #{e.message}"
+      end
     end
     items.compact
   end

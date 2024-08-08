@@ -22,11 +22,10 @@ class OnlineStore
 
   def initialize
     @db_conn = DBConnection.new
-    @customers = load_customers(conn: @db_conn.conn)
-    @orders = []
-    @items = load_items(conn: @db_conn.conn)
     @order_source = CsvOrderSource.new(file_path: FILE_NAME)
-    load_orders
+    @customers = load_customers(conn: @db_conn.conn)
+    @orders = load_orders
+    @items = load_items(conn: @db_conn.conn)
   end
 
   def load_orders

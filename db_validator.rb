@@ -57,5 +57,3 @@ class DBValidator
                      [item[:name], item[:description], item[:price], item[:type], item[:age_restriction], item[:platform]])
   end
 end
-
-DBValidator.new.validate_items

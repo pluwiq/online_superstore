@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require 'active_support/core_ext/object/blank'
+
 module OrderItemOperations
   def insert_order_items(order:, conn:)
     values = order.items.map { |item| "(#{order.id}, #{item[:item].id}, #{item[:quantity]})" }.join(',')
@@ -7,7 +9,7 @@ module OrderItemOperations
   end
 
   def delete_order_items(order_id:, items_to_delete:, conn:)
-    unless items_to_delete.empty?
+    if items_to_delete.present?
       delete_ids = items_to_delete.join(',')
       conn.exec_params("DELETE FROM order_items WHERE order_id = $1 AND item_id IN (#{delete_ids})", [order_id])
     end

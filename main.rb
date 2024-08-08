@@ -2,6 +2,9 @@
 
 require_relative 'online_store'
 require_relative 'order_helpers'
+require_relative 'db_validator'
+
+DBValidator.new.validate_items
 
 store = OnlineStore.new
 include OrderHelpers

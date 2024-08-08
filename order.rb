@@ -37,9 +37,9 @@ class Order
   def export_order(file_path:)
     CSV.open(file_path, 'wb') do |csv|
       csv << ['Item ID', 'Item Name', 'Quantity', 'Price']
-      items.each { |i| csv << [i[:item].id, i[:item].name, i[:quantity], i[:item].price]}
-      end
+      items.each { |i| csv << [i[:item].id, i[:item].name, i[:quantity], i[:item].price] }
     end
+  end
 
   def show_order
     return puts 'No items in this order.' if @items.empty?
